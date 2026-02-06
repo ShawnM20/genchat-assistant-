@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GenChat – AI Chatbot</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; }
+    .chat-container { max-height: calc(100vh - 140px); }
+    .message-bubble { max-width: 80%; word-break: break-word; }
+    .typing-indicator {
+      display: inline-flex;
+      gap: 4px;
+    }
+    .typing-indicator span {
+      width: 8px;
+      height: 8px;
+      background: #9ca3af;
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="bg-gradient-to-b from-gray-950 via-gray-900 to-black text-gray-100 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-gray-900/90 backdrop-blur-md border-b border-gray-800 py-4 px-6 shadow-lg z-10">
+    <div class="max-w-5xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
+          G
+        </div>
+        <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500">
+          GenChat
+        </h1>
+      </div>
+      <p class="text-sm text-gray-400">Powered by Groq • Llama 3.3</p>
+    </div>
+  </header>
+
+  <!-- Messages Area -->
+  <div id="messages" class="chat-container flex-1 overflow-y-auto p-6 space-y-6 pb-32">
+    <!-- Messages appended here -->
+  </div>
+
+  <!-- Floating Input Bar -->
+  <footer class="fixed bottom-0 left-0 right-0 bg-gray-900/90 backdrop-blur-lg border-t border-gray-800 py-4 px-6 z-20">
+    <div class="max-w-5xl mx-auto flex items-center gap-4">
+      <textarea
+        id="input"
+        rows="1"
+        placeholder="Ask anything..."
+        class="flex-1 p-4 bg-gray-800/70 border border-gray-700 rounded-2xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 resize-none text-gray-100 placeholder-gray-500"
+      ></textarea>
+      <button
+        id="sendBtn"
+        class="p-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl hover:from-indigo-500 hover:to-purple-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled
+      >
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+        </svg>
+      </button>
+      <button
+        id="clearBtn"
+        class="p-4 bg-gray-700 rounded-2xl hover:bg-gray-600 transition"
+      >
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
+    </div>
+  </footer>
+
+  <script>
+    const messagesDiv = document.getElementById('messages');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('sendBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const sessionId = "chat_" + Math.random().toString(36).substring(2, 10);
+
+    // Auto-resize textarea
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = input.scrollHeight + 'px';
+      sendBtn.disabled = !input.value.trim();
+    });
+
+    function addMessage(role, content = '', isTyping = false) {
+      const div = document.createElement('div');
+      div.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'} fade-in`;
+
+      const bubble = document.createElement('div');
+      bubble.className = `message-bubble p-4 rounded-2xl shadow-md ${
+        role === 'user'
+          ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white'
+          : 'bg-gray-800/90 text-gray-200 border border-gray-700'
+      }`;
+
+      if (isTyping) {
+        bubble.innerHTML = '<span class="typing-indicator"><span>.</span><span>.</span><span>.</span></span>';
+      } else {
+        bubble.innerHTML = content.replace(/\n/g, '<br>');
+      }
+
+      div.appendChild(bubble);
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      return bubble;
+    }
+
+    async function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+
+      addMessage('user', text);
+      input.value = '';
+      sendBtn.disabled = true;
+
+      const typingBubble = addMessage('assistant', '', true);
+
+      try {
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, session_id: sessionId })
+        });
+
+        if (!res.ok) throw new Error('Backend error');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        typingBubble.innerHTML = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          let lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (let line of lines) {
+            line = line.trim();
+            if (line.startsWith('data: ')) {
+              let content = line.slice(6).trim();
+              if (content) {
+                if (typingBubble.innerHTML && !typingBubble.innerHTML.endsWith(' ') && /^[a-zA-Z0-9]/.test(content)) {
+                  content = ' ' + content;
+                }
+                typingBubble.innerHTML += content;
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+              }
+            }
+          }
+        }
+
+        // Final buffer
+        if (buffer.trim()) {
+          let content = buffer.trim().replace(/^data: /, '');
+          if (content) {
+            if (typingBubble.innerHTML && !typingBubble.innerHTML.endsWith(' ') && /^[a-zA-Z0-9]/.test(content)) {
+              content = ' ' + content;
+            }
+            typingBubble.innerHTML += content;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+          }
+        }
+      } catch (err) {
+        typingBubble.innerHTML = 'Error: Could not connect to AI.';
+        console.error(err);
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    async function clearChat() {
+      await fetch('/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId })
+      });
+      messagesDiv.innerHTML = '';
+    }
+
+    sendBtn.onclick = sendMessage;
+    clearBtn.onclick = clearChat;
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  </script>
+
+</body>
+</html>

@@ -89,13 +89,6 @@ def chat():
             print("DEBUG: FAST-PATH TRIGGERED for:", repr(message))
             return  # ← stop here — instant response
 
-        # If fast-path didn't trigger, show why (temporary debug help)
-        yield "DEBUG: Fast-path did NOT trigger\n"
-        yield f"DEBUG: has_what={has_what}, has_time={has_time}, is_short={is_short}, no_tz={no_tz}\n\n"
-
-        # ───────────────────────────────────────────────────────────────
-        # Normal path: search + LLM
-        # ───────────────────────────────────────────────────────────────
         try:
             trigger_keywords = [
                 "current", "now", "today", "right now", "latest", "who is", "who's",

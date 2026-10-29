@@ -57,9 +57,6 @@ def chat():
     if not message:
         return jsonify({"error": "No message"}), 400
 
-    # ─── DEBUG PRINTS ────────────────────────────────────────────────────────
-    print("DEBUG: Received message (raw repr):", repr(message))
-    print("DEBUG: message after .strip():", repr(message.strip()))
 
     if session_id not in conversations:
         conversations[session_id] = []
@@ -73,7 +70,7 @@ def chat():
         lower_msg = message.lower().strip()
 
         # ───────────────────────────────────────────────────────────────
-        # VERY forgiving fast-path for time questions (debug mode)
+        # Fast path for simple time questions
         # ───────────────────────────────────────────────────────────────
         lower_clean = ''.join(c for c in message.lower() if c.isalnum() or c.isspace())
         has_what   = any(w in lower_clean for w in ["what", "whats", "what's"])
@@ -86,9 +83,12 @@ def chat():
             response = f"The current time is **{now_str}**.\n\n"
             yield response
             full_response += response
-            print("DEBUG: FAST-PATH TRIGGERED for:", repr(message))
             return  # ← stop here — instant response
 
+
+        # ───────────────────────────────────────────────────────────────
+        # Normal path: search + LLM
+        # ───────────────────────────────────────────────────────────────
         try:
             trigger_keywords = [
                 "current", "now", "today", "right now", "latest", "who is", "who's",
